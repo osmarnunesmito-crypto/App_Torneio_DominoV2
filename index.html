@@ -1,0 +1,1916 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🁣 Torneio de Dominó — Ponta Negra</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<style>
+  :root{
+    --vinho: #5c0a1e;
+    --vinho-escuro: #3a0612;
+    --ouro: #d4af37;
+    --ouro-claro:#f5e08c;
+    --branco: #f5f0e6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Segoe UI', Arial, sans-serif;
+    background: linear-gradient(135deg, var(--vinho-escuro), var(--vinho));
+    color: var(--branco);
+    min-height:100vh;
+    padding-bottom:40px;
+  }
+  header{
+    text-align:center;
+    padding:22px 10px 10px;
+    border-bottom:3px solid var(--ouro);
+    background: rgba(0,0,0,0.25);
+    position:sticky; top:0; z-index:50;
+  }
+  header h1{
+    color: var(--ouro);
+    margin:0;
+    font-size:1.8em;
+    text-shadow: 1px 1px 4px #000;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+  }
+  header p{ margin:5px 0; font-size:0.9em; color:var(--branco); }
+
+  #cronometro{
+    display:inline-block;
+    background: rgba(0,0,0,0.4);
+    border:2px solid var(--ouro);
+    padding:6px 18px;
+    border-radius:10px;
+    font-weight:bold;
+    font-size:1.1em;
+    margin-top:6px;
+    color: var(--ouro);
+  }
+  #cronometro.alerta{ color:#fff; background: #a1132b; animation: pulse 1s infinite; }
+  @keyframes pulse{ 0%{ box-shadow:0 0 5px #ff0000; } 50%{ box-shadow:0 0 20px #ff0000; } 100%{ box-shadow:0 0 5px #ff0000; } }
+
+  .container{ max-width: 1000px; margin: 20px auto; padding: 0 15px; }
+
+  .card{
+    background: rgba(0,0,0,0.3);
+    border: 2px solid var(--ouro);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  .card h2{ color: var(--ouro); border-bottom: 1px solid var(--ouro); padding-bottom: 6px; font-size: 1.2em; }
+
+  label{ font-size:0.85em; color: var(--ouro); font-weight:bold; }
+
+  input, select{
+    width: 100%;
+    padding: 9px;
+    margin: 6px 0;
+    border-radius: 8px;
+    border: 1px solid var(--ouro);
+    background: var(--branco);
+    color: var(--vinho-escuro);
+    font-weight:bold;
+  }
+  input[type="date"], input[type="time"]{ cursor:pointer; }
+
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  button{
+    background: var(--ouro);
+    color: var(--vinho-escuro);
+    border:none;
+    padding:10px 16px;
+    border-radius:8px;
+    font-weight:bold;
+    cursor:pointer;
+    margin-top:8px;
+    transition:0.2s;
+  }
+  button:hover{ background:#fff; transform: scale(1.03); }
+  button.danger{ background:#a1132b; color:#fff; }
+  button.small{ padding:5px 10px; font-size:0.8em; }
+  button.export{ background:#2b7a3d; color:#fff; margin-right:8px; }
+  button.sortear{ background:#1a73e8; color:#fff; margin-right:8px; }
+  button.ghost{ background:transparent; border:2px solid var(--ouro); color:var(--ouro); }
+  button.mini{ padding:3px 8px; font-size:0.75em; margin:2px; }
+  button:disabled{ opacity:0.4; cursor:not-allowed; }
+
+  table{ width:100%; border-collapse:collapse; margin-top:10px; }
+  th, td{ padding:8px; border-bottom:1px solid var(--ouro); text-align:center; font-size:0.9em; }
+  th{ color: var(--ouro); }
+
+  .status-eliminada{ color:#ff8080; font-weight:bold; }
+  .status-viva{ color:#7CFC7C; font-weight:bold; }
+  .status-concluida{ color:#a0a0a0; font-style:italic; }
+  .status-reserva{ color:#ffd700; font-weight:bold; }
+
+  .podio{ display:flex; justify-content:space-around; gap:10px; flex-wrap:wrap; }
+  .podio-item{
+    flex:1; min-width:130px;
+    background: rgba(212,175,55,0.15);
+    border:2px solid var(--ouro);
+    border-radius:12px; padding:12px; text-align:center;
+  }
+  .podio-item .medalha{ font-size:2em; }
+  .podio-item.ouro{ order:2; border-color: gold; }
+  .podio-item.prata{ order:1; border-color: silver; }
+  .podio-item.bronze{ order:3; border-color: #cd7f32; }
+
+  .domino-icon{
+    display:inline-flex;
+    flex-direction:column;
+    justify-content:space-between;
+    width:26px;
+    height:46px;
+    background: linear-gradient(160deg, #fffdf7, #e8e2d0);
+    border:2px solid #1a1a1a;
+    border-radius:6px;
+    position:relative;
+    box-shadow: inset 0 0 4px rgba(0,0,0,.3), 0 2px 4px rgba(0,0,0,.5);
+    padding:4px 0;
+  }
+  .domino-icon::before{
+    content:"";
+    position:absolute;
+    top:50%; left:2px; right:2px;
+    height:2px;
+    background: var(--vinho);
+    transform: translateY(-50%);
+  }
+  .domino-pips{
+    display:grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap:2px;
+    width:100%;
+    height:16px;
+    padding:0 4px;
+  }
+  .domino-pips span{
+    width:5px; height:5px;
+    background: var(--vinho);
+    border-radius:50%;
+    justify-self:center;
+    align-self:center;
+  }
+  .domino-pips span:nth-child(2){ justify-self:end; }
+  .domino-pips span:nth-child(3){ justify-self:start; align-self:end; }
+  .domino-pips span:nth-child(4){ justify-self:end; align-self:end; }
+
+  .rules{ font-size:0.9em; line-height:1.5; }
+  .rules li{ margin-bottom:6px; }
+
+  .partida-inputs{ display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:6px; align-items:center; }
+  .empty{ text-align:center; opacity:0.6; padding:15px; }
+
+  .bracket{ display:flex; gap:30px; overflow-x:auto; padding:10px 0; }
+  .rodada-col{ min-width:220px; display:flex; flex-direction:column; justify-content:space-around; gap:20px; }
+  .rodada-col h3{ text-align:center; color:var(--ouro); font-size:0.95em; margin-bottom:10px; }
+  .bracket-match{ background: rgba(0,0,0,0.35); border:2px solid var(--ouro); border-radius:10px; padding:8px; font-size:0.8em; }
+  .bracket-match .time{ padding:4px; border-radius:5px; }
+  .bracket-match .vencedor{ background: rgba(124,252,124,0.2); font-weight:bold; color:#7CFC7C; }
+  .bracket-match .eliminado{ color:#ff8080; text-decoration:line-through; }
+  .bracket-data{ font-size:0.7em; color:var(--ouro); text-align:center; margin-bottom:4px; }
+
+  .modal-overlay{
+    display:none;
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items:center; justify-content:center;
+    padding:15px;
+  }
+  .modal-overlay.ativo{ display:flex; }
+  .modal-box{
+    background: linear-gradient(135deg, var(--vinho-escuro), var(--vinho));
+    border: 3px solid var(--ouro);
+    border-radius: 16px;
+    max-width: 550px;
+    width:100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 20px;
+    box-shadow: 0 0 30px rgba(0,0,0,0.6);
+  }
+  .modal-box h2{ color: var(--ouro); text-align:center; margin-top:0; }
+  .preview-jogo{
+    background: rgba(0,0,0,0.3);
+    border:1px solid var(--ouro);
+    border-radius:10px;
+    padding:10px;
+    margin-bottom:10px;
+    text-align:center;
+  }
+  .preview-jogo b{ color: var(--ouro); }
+  .modal-actions{ display:flex; gap:10px; justify-content:center; margin-top:15px; flex-wrap:wrap; }
+
+  .fase-tag{
+    display:inline-block;
+    font-size:0.75em;
+    background: rgba(212,175,55,0.2);
+    border:1px solid var(--ouro);
+    padding:2px 8px;
+    border-radius:6px;
+    margin-left:6px;
+  }
+
+  .dropdown-jogadores{
+    margin-top:10px;
+    background:rgba(255,255,255,.05);
+    border:1px solid var(--ouro);
+    border-radius:10px;
+    padding:10px 14px;
+  }
+  .dropdown-jogadores summary{
+    cursor:pointer;
+    color:var(--ouro);
+    font-weight:bold;
+    font-size:1.05em;
+    outline:none;
+    padding:6px 0;
+  }
+  .dropdown-jogadores summary:hover{ color:var(--ouro-claro); }
+  .dropdown-jogadores[open] summary{ margin-bottom:8px; }
+
+  .dupla-box{
+    background:rgba(255,255,255,.08);
+    border-left:4px solid var(--ouro);
+    padding:10px;
+    border-radius:8px;
+    margin-bottom:8px;
+    animation: fadeIn 0.3s ease-in;
+  }
+  @keyframes fadeIn{ from{ opacity:0; transform:translateY(-6px); } to{ opacity:1; transform:translateY(0); } }
+  .badge{
+    display:inline-block;
+    background:var(--ouro);
+    color:#3a3208;
+    border-radius:50%;
+    width:26px;height:26px;
+    text-align:center;
+    line-height:26px;
+    font-weight:bold;
+    margin-right:8px;
+  }
+  .alerta-critico{
+    background: rgba(161,19,43,0.3);
+    border:2px solid #ff8080;
+    border-radius:10px;
+    padding:10px 14px;
+    font-size:0.85em;
+    margin-top:8px;
+  }
+  .aviso-info{
+    font-size:0.8em;
+    opacity:0.85;
+    text-align:center;
+    margin-top:6px;
+  }
+  .aviso-concluido{
+    background: rgba(124,252,124,0.15);
+    border:1px solid #7CFC7C;
+    border-radius:8px;
+    padding:8px 12px;
+    font-size:0.8em;
+    color:#7CFC7C;
+    text-align:center;
+    margin-top:6px;
+  }
+  .aviso-sucesso-sorteio{
+    background: rgba(124,252,124,0.15);
+    border:2px solid #7CFC7C;
+    border-radius:10px;
+    padding:10px 14px;
+    font-size:0.85em;
+    color:#7CFC7C;
+    text-align:center;
+    margin-top:8px;
+    font-weight:bold;
+  }
+  .aviso-bloqueio{
+    background: rgba(161,19,43,0.25);
+    border:2px solid #ff8080;
+    border-radius:10px;
+    padding:10px 14px;
+    font-size:0.85em;
+    text-align:center;
+    margin-bottom:10px;
+    font-weight:bold;
+  }
+  .contador-duplas{
+    text-align:center;
+    color:var(--ouro);
+    font-size:0.85em;
+    margin-bottom:8px;
+    font-weight:bold;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>
+    <span class="domino-icon"><span class="domino-pips"><span></span><span></span><span></span><span></span></span><span class="domino-pips"><span></span></span></span>
+    TORNEIO DE DOMINÓ
+    <span class="domino-icon"><span class="domino-pips"><span></span></span><span class="domino-pips"><span></span><span></span><span></span><span></span></span></span>
+  </h1>
+  <p>Condomínio Evidence — Ponta Negra 🏢</p>
+  <div id="cronometro">⏰ --:--:--</div>
+</header>
+
+<div class="container">
+
+  <div class="card">
+    <h2>📅 Data e Hora do Evento</h2>
+    <p class="aviso-info">Defina aqui a data/hora padrão a ser usada ao cadastrar confrontos da Fase de Grupos.</p>
+    <div class="grid2">
+      <input type="date" id="dataEvento">
+      <input type="time" id="horaEvento" value="18:00">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📜 Regras Oficiais</h2>
+    <ul class="rules">
+      <li>🎯 <b>Venceu por Pontos:</b> venceu por pontos a dupla que fizer 200 pontos ganha até o fim da partida e não do estala.</li>
+      <li>🐓 <b>Galo Gay</b> (bater e travar indevidamente) → dupla infratora <b>perde o confronto inteiro automaticamente</b>; a adversária ganha <b>6 pontos e 2 partidas vencidas</b> — SOMENTE se for a primeira decisão do confronto. Se já houver partida anterior decidida, a infração vale apenas 3 pontos daquela partida.</li>
+      <li>🖐️ <b>Pedra na mão</b> (passar com pedra jogável) → mesma regra do Galo Gay.</li>
+      <li>🐱 <b>Passou o gato</b> (trocar pedra) → mesma regra do Galo Gay.</li>
+      <li>🤐 <b>Falou no jogo</b> → mesma regra do Galo Gay.</li>
+      <li>👀 <b>Deu sinal</b> ao parceiro → mesma regra do Galo Gay.</li>
+      <li>🎲 5 carroças (dupla-cinco) → jogo prossegue <b>normalmente</b>.</li>
+      <li>🥇 <b>Fase de Grupos:</b> melhor de 3 partidas — cada vitória vale <b>3 pontos</b> de classificação. Ao vencer 2 partidas, a dupla é declarada classificada automaticamente e a 3ª partida <b>não precisa ser jogada</b>.</li>
+      <li>⚡ <b>Fases seguintes (Quartas/Semifinal/Final/Disputa 3º):</b> partida única — quem vencer avança direto.</li>
+      <li>🏆 <b>Fase Final:</b> mata-mata sequencial até definir os <b>3 primeiros colocados</b>.</li>
+      <li>⚖️ <b>Desempate na Fase de Grupos:</b> saldo de pontos → menos partidas jogadas → confronto direto → sorteio.</li>
+      <li>🕕 Jogos das <b>18h às 22h</b> (regras do condomínio).</li>
+      <li>👤 <b>Jogador ímpar:</b> se o número de jogadores for ímpar, o jogador que sobrar por sorteio aleatório fica como <b>RESERVA</b> até que outro jogador/reserva permita formar dupla completa.</li>
+      <li>🔒 <b>Duplas fixas:</b> o sorteio prévio de duplas é feito <b>uma a uma</b>, de forma <b>aleatória e transparente, na frente de todos</b>, para garantir isenção total. Cada dupla sorteada aparece imediatamente na tela, empilhada abaixo da anterior. Uma vez sorteada, a dupla se torna <b>permanente até o fim do torneio</b> — <b>um jogador nunca pode aparecer em mais de uma dupla</b>.</li>
+      <li>⛔ <b>Após a Fase de Grupos ser concluída</b>, não é mais permitido cadastrar novos jogadores, duplas ou confrontos de grupo.</li>
+      <li>🔁 <b>Bye (número ímpar de duplas vencedoras em qualquer fase eliminatória):</b> quando o número de duplas classificadas para a próxima rodada é ímpar, é <b>matematicamente impossível formar pares perfeitos</b>. Uma dupla, sorteada de forma <b>aleatória</b> (mesmo critério do sorteio de duplas e confrontos), avança automaticamente sem jogar naquela rodada. <b>Não é uma falha do sistema</b> — é uma regra estrutural de qualquer chaveamento eliminatório, a mesma lógica usada em competições oficiais (ex: Copa do Brasil, Wimbledon) sempre que o número de classificados não é uma potência de 2 (2, 4, 8, 16...). A dupla beneficiada pelo Bye continua precisando <b>vencer normalmente</b> as fases seguintes para permanecer na disputa.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>👥 Jogadores</h2>
+    <div id="avisoBloqueioJogadores"></div>
+    <div class="grid2">
+      <input id="inputNome" placeholder="Nome do jogador(a)">
+      <select id="inputTipo">
+        <option value="JOGADOR">Jogador</option>
+        <option value="JOGADORA">Jogadora</option>
+      </select>
+    </div>
+    <button id="btnAdicionarJogador" onclick="adicionarJogador()">➕ Adicionar Jogador</button>
+
+    <div class="grid2" style="margin-top:10px;">
+      <button id="btnImportar" onclick="document.getElementById('inputArquivo').click()">📂 Importar Planilha (XLSX/CSV)</button>
+      <button class="danger" onclick="limparJogadores()">🗑️ Limpar Todos os Jogadores</button>
+    </div>
+    <input type="file" id="inputArquivo" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarPlanilha(event)">
+
+    <details id="detalhesJogadores" class="dropdown-jogadores">
+      <summary id="resumoJogadores">👥 Ver lista de jogadores (0)</summary>
+      <table id="tabelaJogadores">
+        <thead><tr><th>Nome</th><th>Tipo</th><th>Ações</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>🎲 Sorteio de Duplas (Formação das Duplas)</h2>
+    <div id="avisoBloqueioDuplas"></div>
+    <div class="grid2">
+      <button id="btnSortearDupla" class="sortear" onclick="sortearDuplas()">🎲 Sortear Próxima Dupla</button>
+      <button class="danger" onclick="limparDuplas()">🗑️ Reiniciar Rodada Atual</button>
+    </div>
+    <button class="ghost" onclick="abrirModalDuplaManual()" style="width:100%;">🤝 Formar Dupla Manualmente</button>
+    <div id="duplasAtuais"></div>
+  </div>
+
+  <div class="card">
+    <h2>⚔️ Sortear Confronto (Fase de Grupos)</h2>
+    <div id="avisoBloqueioConfrontos"></div>
+    <p class="aviso-info">
+      🔒 Este sorteio é válido <b>apenas para a Fase de Grupos</b>. Para Quartas, Semifinal, Final e Disputa de 3º Lugar,
+      use exclusivamente o botão <b>"🔀 Sortear Próxima Fase"</b> mais abaixo.
+    </p>
+
+    <div id="previewConfrontoSorteado" class="preview-jogo" style="display:none;"></div>
+
+    <div class="grid2">
+      <button id="btnSortearConfronto" class="sortear" onclick="sortearConfrontoParaCadastro()">⚔️ Sortear Confronto</button>
+      <button id="btnConfirmarConfronto" onclick="confirmarCadastroConfronto()">✔️ Confirmar e Adicionar ao Torneio</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🏆 Confrontos e Resultados</h2>
+    <div>
+      <button class="export" onclick="exportarPDF()">📄 Exportar PDF</button>
+      <button class="export" onclick="exportarExcel()">📊 Exportar Excel</button>
+      <button class="sortear" onclick="prepararSorteio()">🔀 Sortear Próxima Fase</button>
+      <button class="danger" onclick="limparTudo()">🗑️ Limpar Tudo (Reiniciar)</button>
+    </div>
+    <div id="listaConfrontos"></div>
+  </div>
+
+  <div class="card">
+    <h2>🌳 Chaveamento do Torneio</h2>
+    <div class="bracket" id="bracket"></div>
+  </div>
+
+  <div class="card">
+    <h2>📈 Desempenho Acumulado (Informativo)</h2>
+    <p class="aviso-info">
+      ⚠️ Esta tabela soma os pontos conquistados por cada dupla em <b>todas as fases já disputadas</b> (Grupos + Quartas + Semifinal + Disputa 3º).
+      Serve apenas para <b>acompanhamento e curiosidade</b> — <b>NÃO define a colocação final do torneio</b>.
+      A partir das Quartas de Final, o formato é <b>eliminação simples (mata-mata)</b>: uma dupla pode ter mais pontos acumulados
+      e ainda assim terminar em posição inferior a outra, caso tenha perdido a partida decisiva de avanço.
+      O pódio oficial é definido <b>exclusivamente</b> pelo resultado direto da Final e da Disputa de 3º Lugar.
+    </p>
+    <div id="rankingAtual"></div>
+  </div>
+
+  <div class="card">
+    <h2>📊 Auditoria — Jogos por Dupla</h2>
+    <p class="aviso-info">Use esta tabela para verificar consistência: pontos, partidas jogadas e fases disputadas por cada dupla.</p>
+    <div id="auditoriaDuplas"></div>
+  </div>
+
+  <div class="card">
+    <h2>🥇 Pódio Oficial do Torneio</h2>
+    <p class="aviso-info">
+      🏆 O pódio é definido <b>exclusivamente pelo resultado direto</b> da Final e da Disputa de 3º Lugar,
+      conforme regulamento de eliminação simples (mata-mata) — pontos acumulados em fases anteriores
+      <b>não são considerados</b> para a colocação final, da mesma forma que em competições oficiais
+      (Copa do Brasil, Wimbledon, etc.).
+    </p>
+    <div class="podio" id="podio">
+      <div class="empty">O pódio só será exibido quando a Final e a Disputa de 3º Lugar forem concluídas.</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="modalSorteio">
+  <div class="modal-box">
+    <h2>🔀 Preview do Sorteio</h2>
+    <div id="previewConteudo"></div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="fecharModalSorteio()">✖ Cancelar</button>
+      <button class="sortear" onclick="reSortear()">🔄 Sortear Novamente</button>
+      <button onclick="confirmarSorteio()">✅ Confirmar e Criar Fase</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalEdicaoConfronto">
+  <div class="modal-box">
+    <h2>✏️ Editar Confronto</h2>
+    <label>Fase</label>
+    <input id="editFaseConfronto" disabled>
+    <div class="grid2">
+      <div><label>📅 Data</label><input type="date" id="editDataConfronto"></div>
+      <div><label>⏰ Hora</label><input type="time" id="editHoraConfronto"></div>
+    </div>
+    <label>Dupla A</label>
+    <div class="grid2">
+      <input id="editDuplaA1" placeholder="Jogador 1">
+      <input id="editDuplaA2" placeholder="Jogador 2">
+    </div>
+    <label>Dupla B</label>
+    <div class="grid2">
+      <input id="editDuplaB1" placeholder="Jogador 1">
+      <input id="editDuplaB2" placeholder="Jogador 2">
+    </div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="fecharModalEdicaoConfronto()">✖ Cancelar</button>
+      <button onclick="salvarEdicaoConfronto()">💾 Salvar Alterações</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalDuplaManual">
+  <div class="modal-box">
+    <h2>🤝 Formar Dupla Manualmente</h2>
+    <p class="aviso-info">Selecione dois jogadores disponíveis (sem dupla ainda) para formar uma dupla fixa.</p>
+    <label>Jogador 1</label>
+    <select id="manualJogador1"></select>
+    <label>Jogador 2</label>
+    <select id="manualJogador2"></select>
+    <div class="modal-actions">
+      <button class="ghost" onclick="fecharModalDuplaManual()">✖ Cancelar</button>
+      <button onclick="confirmarDuplaManual()">✅ Formar Dupla</button>
+    </div>
+  </div>
+</div>
+<script>
+/* ==========================================================
+   ESTADO GLOBAL / LOCAL STORAGE
+========================================================== */
+const STORAGE_KEY = "torneioDomino_PontaNegra_v9";
+const LS_JOGADORES     = STORAGE_KEY + "_jogadores";
+const LS_HIST_DUPLAS   = STORAGE_KEY + "_historicoDuplas";
+const LS_DUPLAS_ATUAIS = STORAGE_KEY + "_duplasAtuais";
+
+function carregar(key, fallback){
+  const v = localStorage.getItem(key);
+  return v ? JSON.parse(v) : fallback;
+}
+function salvarLS(key, data){
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+let jogadores = carregar(LS_JOGADORES, []);
+let historicoDuplas = carregar(LS_HIST_DUPLAS, []);
+let duplasAtuais = carregar(LS_DUPLAS_ATUAIS, []);
+
+let confrontos = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+let sorteioPendente = null;
+let confrontoSorteadoPendente = null;
+let confrontoEmEdicao = null;
+
+const MOTIVOS_SEM_OBSERVACAO = ["ponto"];
+const ORDEM_FASES = ["Fase de Grupos", "Quartas de Final", "Semifinal", "Final"];
+const FASES_UNICAS = ["Final", "Disputa 3º Lugar"];
+const MOTIVOS_PENALIDADE = ["galo_gay", "pedra_mao", "gato", "falar", "sinal"];
+
+let contadorId = parseInt(localStorage.getItem(STORAGE_KEY + "_contador")) || 1;
+function gerarIdUnico(){
+  const novoId = contadorId++;
+  localStorage.setItem(STORAGE_KEY + "_contador", contadorId);
+  return novoId;
+}
+
+function persistirDuplasEJogadores(){
+  salvarLS(LS_JOGADORES, jogadores);
+  salvarLS(LS_HIST_DUPLAS, historicoDuplas);
+  salvarLS(LS_DUPLAS_ATUAIS, duplasAtuais);
+}
+
+/* ==========================================================
+   CORREÇÃO DE INTEGRIDADE — ELIMINA JOGADOR EM DUPLAS DUPLICADAS
+========================================================== */
+function corrigirDuplasDuplicadas(){
+  const vistos = new Set();
+  const duplasValidas = [];
+  const remocoes = [];
+
+  historicoDuplas.forEach(d => {
+    const conflito = vistos.has(d.jogador1) || vistos.has(d.jogador2);
+    if(conflito){
+      remocoes.push(d);
+    } else {
+      vistos.add(d.jogador1);
+      vistos.add(d.jogador2);
+      duplasValidas.push(d);
+    }
+  });
+
+  if(remocoes.length > 0){
+    historicoDuplas = duplasValidas;
+    duplasAtuais = duplasAtuais.filter(d =>
+      duplasValidas.some(v => v.numero === d.numero)
+    );
+    persistirDuplasEJogadores();
+
+    alert(
+      `⚠️ INCONSISTÊNCIA CORRIGIDA AUTOMATICAMENTE!\n\n` +
+      `Foram detectadas ${remocoes.length} dupla(s) inválida(s), onde um jogador aparecia em mais de uma dupla ao mesmo tempo:\n\n` +
+      remocoes.map(d => `❌ ${d.jogador1} & ${d.jogador2}`).join('\n') +
+      `\n\nEssas duplas foram removidas do histórico. Se algum confronto já foi cadastrado usando essas duplas, revise manualmente na seção "🏆 Confrontos e Resultados" e exclua/corrija se necessário.`
+    );
+  }
+}
+
+function calcularPoolDisponivel(){
+  const nomesComDupla = new Set();
+  historicoDuplas.forEach(d => {
+    nomesComDupla.add(d.jogador1);
+    nomesComDupla.add(d.jogador2);
+  });
+  return jogadores.filter(j => !nomesComDupla.has(j.nome)).map(j => j.id);
+}
+
+function limparTudo(){
+  if(!confirm("⚠️ Isso vai APAGAR todos os confrontos cadastrados (jogadores e duplas sorteadas permanecem). Tem certeza?")) return;
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(STORAGE_KEY + "_contador");
+  confrontos = [];
+  contadorId = 1;
+  salvar();
+  alert("✅ Torneio (confrontos) reiniciado!");
+}
+
+function salvar(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(confrontos));
+  render();
+}
+
+function formatarData(dataISO){
+  if(!dataISO) return "Data não definida";
+  const [ano, mes, dia] = dataISO.split('-');
+  return `${dia}/${mes}/${ano}`;
+}
+
+function formatarDataHora(dataISO, hora){
+  const dataFmt = formatarData(dataISO);
+  if(dataFmt === "Data não definida") return dataFmt;
+  return `${dataFmt}${hora ? ' às ' + hora : ''}`;
+}
+
+function ehFaseDeGrupos(rodada){
+  return rodada === "Fase de Grupos";
+}
+
+/* ==========================================================
+   CONTROLE DE BLOQUEIO — FASE DE GRUPOS ENCERRADA
+========================================================== */
+function faseDeGruposEncerrada(){
+  const confrontosGrupos = confrontos.filter(c => c.rodada === "Fase de Grupos");
+
+  if(confrontosGrupos.length === 0) return false;
+
+  const disponiveis = duplasDisponiveisParaGrupos();
+  if(disponiveis.length >= 2) return false;
+
+  const temReserva = jogadores.some(j => j.reserva);
+  if(temReserva) return false;
+
+  return confrontosGrupos.every(c => c.finalizado);
+}
+
+function atualizarBloqueiosInterface(){
+  const encerrada = faseDeGruposEncerrada();
+
+  const avisoTexto = `<div class="aviso-bloqueio">🔒 A Fase de Grupos já foi encerrada. Não é mais possível cadastrar novos jogadores, duplas ou confrontos de grupo.</div>`;
+
+  document.getElementById('avisoBloqueioJogadores').innerHTML = encerrada ? avisoTexto : "";
+  document.getElementById('avisoBloqueioDuplas').innerHTML = encerrada ? avisoTexto : "";
+  document.getElementById('avisoBloqueioConfrontos').innerHTML = encerrada ? avisoTexto : "";
+
+  document.getElementById('btnAdicionarJogador').disabled = encerrada;
+  document.getElementById('btnImportar').disabled = encerrada;
+  document.getElementById('btnSortearDupla').disabled = encerrada;
+  document.getElementById('btnSortearConfronto').disabled = encerrada;
+  document.getElementById('btnConfirmarConfronto').disabled = encerrada;
+}
+
+/* ==========================================================
+   CRUD DE JOGADORES
+========================================================== */
+function proximoIdJogador(){
+  return jogadores.length ? Math.max(...jogadores.map(j=>j.id))+1 : 1;
+}
+
+function adicionarJogador(){
+  if(faseDeGruposEncerrada()){
+    alert("🔒 A Fase de Grupos já foi encerrada. Não é mais possível cadastrar novos jogadores neste torneio.");
+    return;
+  }
+  const nome = document.getElementById('inputNome').value.trim().toUpperCase();
+  const tipo = document.getElementById('inputTipo').value;
+  if(!nome){ alert("Digite um nome."); return; }
+  if(jogadores.some(j => j.nome === nome)){ alert("Este jogador já está cadastrado."); return; }
+  const novoJogador = {id:proximoIdJogador(), nome, tipo, reserva:false};
+  jogadores.push(novoJogador);
+  document.getElementById('inputNome').value='';
+  persistirDuplasEJogadores();
+  renderJogadores();
+  renderDuplasAtuais();
+}
+
+function editarJogador(id){
+  const j = jogadores.find(x=>x.id===id);
+  if(!j) return;
+  const novoNome = prompt("Editar nome:", j.nome);
+  if(novoNome===null) return;
+  j.nome = novoNome.trim().toUpperCase();
+  persistirDuplasEJogadores();
+  renderJogadores();
+}
+
+function excluirJogador(id){
+  if(!confirm("Excluir este jogador?")) return;
+  jogadores = jogadores.filter(j=>j.id!==id);
+  persistirDuplasEJogadores();
+  renderJogadores();
+  renderDuplasAtuais();
+}
+
+function limparJogadores(){
+  if(!confirm("Isso vai remover TODOS os jogadores cadastrados. Confirmar?")) return;
+  jogadores = [];
+  persistirDuplasEJogadores();
+  renderJogadores();
+  renderDuplasAtuais();
+}
+
+function renderJogadores(){
+  const tbody = document.querySelector('#tabelaJogadores tbody');
+  const resumo = document.getElementById('resumoJogadores');
+
+  const jogadoresOrdenados = [...jogadores].sort((a, b) =>
+    a.nome.localeCompare(b.nome, 'pt-BR')
+  );
+
+  const qtdReservas = jogadores.filter(j => j.reserva).length;
+  resumo.textContent = `👥 Ver lista de jogadores (${jogadores.length})${qtdReservas > 0 ? ` — ${qtdReservas} reserva(s)` : ''}`;
+
+  tbody.innerHTML = jogadoresOrdenados.map(j => `
+    <tr>
+      <td>${j.nome}${j.reserva ? ' <span class="status-reserva">(RESERVA)</span>' : ''}</td>
+      <td>${j.tipo==='JOGADORA'?'🙋‍♀️ Jogadora':'🙋‍♂️ Jogador'}</td>
+      <td>
+        <button class="mini ghost" onclick="editarJogador(${j.id})">✏️</button>
+        <button class="mini danger" onclick="excluirJogador(${j.id})">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+
+  atualizarBloqueiosInterface();
+}
+
+/* ==========================================================
+   IMPORTAÇÃO DE PLANILHA
+========================================================== */
+function importarPlanilha(event){
+  if(faseDeGruposEncerrada()){
+    alert("🔒 A Fase de Grupos já foi encerrada. Não é mais possível importar novos jogadores.");
+    event.target.value = "";
+    return;
+  }
+
+  const arquivo = event.target.files[0];
+  if(!arquivo) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, {type:'array'});
+    const primeiraAba = workbook.SheetNames[0];
+    const planilha = workbook.Sheets[primeiraAba];
+    const linhas = XLSX.utils.sheet_to_json(planilha, {defval:""});
+
+    if(linhas.length === 0){
+      alert("A planilha está vazia ou não foi possível ler os dados.");
+      return;
+    }
+
+    const chaves = Object.keys(linhas[0]);
+    const chaveNome = chaves.find(k => k.trim().toUpperCase().includes("NOME"));
+    const chaveTipo = chaves.find(k => k.trim().toUpperCase().includes("TIPO"));
+
+    if(!chaveNome){
+      alert("Não foi encontrada uma coluna de NOME na planilha.");
+      return;
+    }
+
+    let importados = 0;
+    let ignoradosAcompanhantes = 0;
+
+    linhas.forEach(linha => {
+      const nomeRaw = String(linha[chaveNome] || "").trim();
+      const tipoRaw = String(linha[chaveTipo] || "").trim().toUpperCase();
+
+      if(!nomeRaw) return;
+
+      if(tipoRaw.includes("ACOMPANHANTE")){
+        ignoradosAcompanhantes++;
+        return;
+      }
+
+      const nome = nomeRaw.toUpperCase();
+      const jaExiste = jogadores.some(j => j.nome === nome);
+      if(jaExiste) return;
+
+      let tipo = "JOGADOR";
+      if(tipoRaw.includes("JOGADORA")) tipo = "JOGADORA";
+
+      const novoJogador = { id: proximoIdJogador(), nome, tipo, reserva:false };
+      jogadores.push(novoJogador);
+      importados++;
+    });
+
+    persistirDuplasEJogadores();
+    renderJogadores();
+    renderDuplasAtuais();
+
+    alert(
+      `✅ Importação concluída!\n` +
+      `Jogadores importados: ${importados}\n` +
+      `Acompanhantes ignorados: ${ignoradosAcompanhantes}`
+    );
+
+    event.target.value = "";
+  };
+
+  reader.readAsArrayBuffer(arquivo);
+}
+
+/* ==========================================================
+   SORTEIO DE DUPLAS — TRANSPARENTE, UMA A UMA
+========================================================== */
+function embaralhar(arr){
+  const a = [...arr];
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function sortearDuplas(){
+  if(faseDeGruposEncerrada()){
+    alert("🔒 A Fase de Grupos já foi encerrada. Não é mais possível formar novas duplas ou inserir novos jogadores no torneio.");
+    return;
+  }
+
+  if(jogadores.length < 2){
+    alert("É necessário ter pelo menos 2 jogadores cadastrados.");
+    return;
+  }
+
+  const disponiveis = calcularPoolDisponivel();
+
+  if(disponiveis.length === 0){
+    alert("✅ Sorteio prévio concluído! Todos os jogadores cadastrados já foram sorteados em duplas fixas, de forma aleatória e democrática. As parcerias permanecem fixas até o fim do torneio. Caso novos jogadores sejam cadastrados, eles entrarão automaticamente disponíveis para um novo sorteio.");
+    return;
+  }
+
+  const poolEmbaralhado = embaralhar(disponiveis);
+
+  if(poolEmbaralhado.length === 1){
+    const idSorteadoReserva = poolEmbaralhado[0];
+    const jogadorRestante = jogadores.find(j => j.id === idSorteadoReserva);
+    jogadorRestante.reserva = true;
+    persistirDuplasEJogadores();
+    renderDuplasAtuais();
+    renderJogadores();
+    alert(`⚠️ Por sorteio aleatório, ${jogadorRestante.nome} ficou como RESERVA nesta rodada (número ímpar de jogadores disponíveis). Poderá formar dupla assim que outro jogador/reserva entrar no sorteio.`);
+    return;
+  }
+
+  const id1 = poolEmbaralhado[0];
+  const id2 = poolEmbaralhado[1];
+
+  const jogador1 = jogadores.find(j => j.id === id1);
+  const jogador2 = jogadores.find(j => j.id === id2);
+
+  jogador1.reserva = false;
+  jogador2.reserva = false;
+
+  const numeroDupla = historicoDuplas.length + 1;
+  const novaDupla = {
+    numero: numeroDupla,
+    jogador1: jogador1.nome,
+    jogador2: jogador2.nome,
+    usos: 0
+  };
+
+  duplasAtuais.push(novaDupla);
+  historicoDuplas.push(novaDupla);
+
+  persistirDuplasEJogadores();
+  renderDuplasAtuais();
+  renderJogadores();
+}
+
+/* ==========================================================
+   REINICIAR RODADA ATUAL
+========================================================== */
+function limparDuplas(){
+  if(!confirm("Reiniciar o sorteio da rodada atual? As duplas sorteadas nesta rodada (ainda não usadas em nenhum confronto oficial) serão desfeitas e os jogadores voltarão ao pool disponível.")) return;
+
+  const numerosAtuais = new Set(duplasAtuais.map(d => d.numero));
+  historicoDuplas = historicoDuplas.filter(d => !numerosAtuais.has(d.numero));
+
+  duplasAtuais = [];
+  jogadores.forEach(j => j.reserva = false);
+  persistirDuplasEJogadores();
+  renderDuplasAtuais();
+  renderJogadores();
+}
+
+function renderDuplasAtuais(){
+  const div = document.getElementById('duplasAtuais');
+  const reservasAtuais = jogadores.filter(j => j.reserva);
+  const disponiveis = calcularPoolDisponivel();
+
+  let html = "";
+
+  html += `<p class="contador-duplas">📋 Duplas sorteadas: ${historicoDuplas.length} | Jogadores disponíveis: ${disponiveis.length}</p>`;
+
+  if(historicoDuplas.length === 0){
+    html += '<p class="empty">Nenhuma dupla sorteada ainda. Clique em "🎲 Sortear Próxima Dupla" para começar.</p>';
+  } else {
+    html += historicoDuplas.map(d=>`
+      <div class="dupla-box">
+        <span class="badge">${d.numero}</span>
+        <strong>${d.jogador1}</strong> 🤝 <strong>${d.jogador2}</strong>
+      </div>
+    `).join('');
+  }
+
+  if(reservasAtuais.length > 0){
+    html += `<div class="alerta-critico">⚠️ Jogador(es) em espera como RESERVA (por sorteio aleatório): <b>${reservasAtuais.map(j=>j.nome).join(', ')}</b>. Aguardando outro jogador para formar dupla.</div>`;
+  }
+
+  if(historicoDuplas.length > 0 && disponiveis.length === 0 && reservasAtuais.length === 0){
+    html += `<div class="aviso-sucesso-sorteio">✅ Sorteio prévio concluído! Todos os jogadores cadastrados já possuem dupla fixa formada de forma aleatória e democrática.</div>`;
+  }
+
+  div.innerHTML = html;
+}
+
+/* ==========================================================
+   FORMAÇÃO MANUAL DE DUPLA
+========================================================== */
+function abrirModalDuplaManual(){
+  if(faseDeGruposEncerrada()){
+    alert("🔒 A Fase de Grupos já foi encerrada. Não é mais possível formar novas duplas.");
+    return;
+  }
+
+  const disponiveisIds = calcularPoolDisponivel();
+  if(disponiveisIds.length < 2){
+    alert("É necessário pelo menos 2 jogadores disponíveis (sem dupla) para formar uma dupla manualmente.");
+    return;
+  }
+
+  const disponiveis = jogadores.filter(j => disponiveisIds.includes(j.id));
+
+  const opcoes = disponiveis
+    .map(j => `<option value="${j.id}">${j.nome}${j.reserva ? ' (RESERVA)' : ''}</option>`)
+    .join('');
+
+  const sel1 = document.getElementById('manualJogador1');
+  const sel2 = document.getElementById('manualJogador2');
+  sel1.innerHTML = `<option value="">Selecione...</option>` + opcoes;
+  sel2.innerHTML = `<option value="">Selecione...</option>` + opcoes;
+
+  document.getElementById('modalDuplaManual').classList.add('ativo');
+}
+
+function fecharModalDuplaManual(){
+  document.getElementById('modalDuplaManual').classList.remove('ativo');
+}
+
+function confirmarDuplaManual(){
+  const id1 = parseInt(document.getElementById('manualJogador1').value);
+  const id2 = parseInt(document.getElementById('manualJogador2').value);
+
+  if(!id1 || !id2){ alert("Selecione os dois jogadores."); return; }
+  if(id1 === id2){ alert("Selecione dois jogadores diferentes."); return; }
+
+  const jogador1 = jogadores.find(j => j.id === id1);
+  const jogador2 = jogadores.find(j => j.id === id2);
+
+  if(!jogador1 || !jogador2){ alert("Jogador não encontrado."); return; }
+
+  const disponiveisIds = calcularPoolDisponivel();
+  if(!disponiveisIds.includes(id1) || !disponiveisIds.includes(id2)){
+    alert("Um dos jogadores já possui dupla formada. Atualize a lista e tente novamente.");
+    return;
+  }
+
+  jogador1.reserva = false;
+  jogador2.reserva = false;
+
+  const numeroDupla = historicoDuplas.length + 1;
+  const novaDupla = {
+    numero: numeroDupla,
+    jogador1: jogador1.nome,
+    jogador2: jogador2.nome,
+    usos: 0
+  };
+
+  duplasAtuais.push(novaDupla);
+  historicoDuplas.push(novaDupla);
+
+  persistirDuplasEJogadores();
+  renderDuplasAtuais();
+  renderJogadores();
+  fecharModalDuplaManual();
+
+  alert(`✅ Dupla formada manualmente: ${jogador1.nome} & ${jogador2.nome}`);
+}
+
+/* ==========================================================
+   SORTEIO DE CONFRONTOS (APENAS FASE DE GRUPOS)
+========================================================== */
+function duplasDisponiveisParaGrupos(){
+  const usadasNosGrupos = new Set();
+  confrontos.filter(c => c.rodada === "Fase de Grupos").forEach(c => {
+    usadasNosGrupos.add(c.duplaA.join('|'));
+    usadasNosGrupos.add(c.duplaB.join('|'));
+  });
+  return historicoDuplas.filter(d => {
+    const chave = `${d.jogador1}|${d.jogador2}`;
+    return !usadasNosGrupos.has(chave) && !d.jogador2.includes("SEM PAR");
+  });
+}
+
+function sortearConfrontoParaCadastro(){
+  if(faseDeGruposEncerrada()){
+    alert("🔒 A Fase de Grupos já foi encerrada. Não é mais possível cadastrar novos confrontos nesta fase.");
+    return;
+  }
+
+  const disponiveis = duplasDisponiveisParaGrupos();
+
+  if(disponiveis.length < 2){
+    alert(`Não há duplas suficientes disponíveis (não usadas ainda) na Fase de Grupos. Sorteie mais duplas na seção acima.`);
+    return;
+  }
+
+  const embaralhadas = embaralhar(disponiveis);
+  const duplaAObj = embaralhadas[0];
+  const duplaBObj = embaralhadas[1];
+
+  confrontoSorteadoPendente = { duplaAObj, duplaBObj, rodada: "Fase de Grupos" };
+
+  const preview = document.getElementById('previewConfrontoSorteado');
+  preview.style.display = 'block';
+  preview.innerHTML = `
+    <b>Confronto sorteado para "Fase de Grupos":</b><br>
+    Dupla ${duplaAObj.numero}: ${duplaAObj.jogador1} & ${duplaAObj.jogador2}
+    <span style="color:var(--ouro);"> vs </span>
+    Dupla ${duplaBObj.numero}: ${duplaBObj.jogador1} & ${duplaBObj.jogador2}
+  `;
+}
+
+function confirmarCadastroConfronto(){
+  if(faseDeGruposEncerrada()){
+    alert("🔒 A Fase de Grupos já foi encerrada. Não é mais possível cadastrar novos confrontos nesta fase.");
+    return;
+  }
+
+  if(!confrontoSorteadoPendente){
+    alert("Primeiro clique em '⚔️ Sortear Confronto' para gerar o confronto.");
+    return;
+  }
+
+  const dataEvento = document.getElementById('dataEvento').value;
+  const horaEvento = document.getElementById('horaEvento').value;
+
+  if(!dataEvento){ alert("Selecione a data do evento!"); return; }
+  if(!horaEvento){ alert("Selecione a hora do evento!"); return; }
+
+  const { duplaAObj, duplaBObj, rodada } = confrontoSorteadoPendente;
+
+  confrontos.push({
+    id: gerarIdUnico(),
+    rodada,
+    dataEvento,
+    horaEvento,
+    duplaA: [duplaAObj.jogador1, duplaAObj.jogador2],
+    duplaB: [duplaBObj.jogador1, duplaBObj.jogador2],
+    partidas: new Array(3).fill(null),
+    vitoriasA: 0,
+    vitoriasB: 0,
+    pontosA: 0,
+    pontosB: 0,
+    eliminadaA: false,
+    eliminadaB: false,
+    finalizado: false
+  });
+
+  duplaAObj.usos = (duplaAObj.usos || 0) + 1;
+  duplaBObj.usos = (duplaBObj.usos || 0) + 1;
+  persistirDuplasEJogadores();
+
+  confrontoSorteadoPendente = null;
+  document.getElementById('previewConfrontoSorteado').style.display = 'none';
+  document.getElementById('previewConfrontoSorteado').innerHTML = '';
+
+  salvar();
+  alert("✅ Confronto adicionado à Fase de Grupos!");
+}
+
+/* ==========================================================
+   CONFRONTOS (TORNEIO)
+========================================================== */
+function excluirConfronto(id){
+  if(!confirm("Excluir este confronto?")) return;
+  confrontos = confrontos.filter(c => c.id !== id);
+  salvar();
+}
+
+function abrirEdicaoConfronto(id){
+  const c = confrontos.find(x => x.id === id);
+  if(!c) return;
+  confrontoEmEdicao = c;
+
+  document.getElementById('editFaseConfronto').value = c.rodada;
+  document.getElementById('editDataConfronto').value = c.dataEvento || "";
+  document.getElementById('editHoraConfronto').value = c.horaEvento || "18:00";
+  document.getElementById('editDuplaA1').value = c.duplaA[0];
+  document.getElementById('editDuplaA2').value = c.duplaA[1];
+  document.getElementById('editDuplaB1').value = c.duplaB[0];
+  document.getElementById('editDuplaB2').value = c.duplaB[1];
+
+  document.getElementById('modalEdicaoConfronto').classList.add('ativo');
+}
+
+function fecharModalEdicaoConfronto(){
+  confrontoEmEdicao = null;
+  document.getElementById('modalEdicaoConfronto').classList.remove('ativo');
+}
+
+function salvarEdicaoConfronto(){
+  if(!confrontoEmEdicao) return;
+
+  const novaData = document.getElementById('editDataConfronto').value;
+  const novaHora = document.getElementById('editHoraConfronto').value;
+  const a1 = document.getElementById('editDuplaA1').value.trim().toUpperCase();
+  const a2 = document.getElementById('editDuplaA2').value.trim().toUpperCase();
+  const b1 = document.getElementById('editDuplaB1').value.trim().toUpperCase();
+  const b2 = document.getElementById('editDuplaB2').value.trim().toUpperCase();
+
+  if(!novaData || !novaHora){ alert("Data e hora são obrigatórias."); return; }
+  if(!a1 || !a2 || !b1 || !b2){ alert("Preencha os nomes das duas duplas."); return; }
+
+  confrontoEmEdicao.dataEvento = novaData;
+  confrontoEmEdicao.horaEvento = novaHora;
+  confrontoEmEdicao.duplaA = [a1, a2];
+  confrontoEmEdicao.duplaB = [b1, b2];
+
+  salvar();
+  fecharModalEdicaoConfronto();
+  alert("✅ Confronto atualizado!");
+}
+
+function toggleObservacao(id, index){
+  const motivo = document.getElementById(`motivo_${id}_${index}`).value;
+  const wrapper = document.getElementById(`obsWrapper_${id}_${index}`);
+  if(!wrapper) return;
+  wrapper.style.display = MOTIVOS_SEM_OBSERVACAO.includes(motivo) ? "none" : "block";
+}
+
+function registrarPartida(id, index){
+  const c = confrontos.find(x => x.id === id);
+  if(!c){ alert("ERRO: confronto não encontrado! ID: " + id); return; }
+
+  const vencedorSelect = document.getElementById(`vencedor_${id}_${index}`);
+  const motivoSelect = document.getElementById(`motivo_${id}_${index}`);
+  const obsInput = document.getElementById(`obs_${id}_${index}`);
+
+  const vencedor = vencedorSelect.value;
+  const motivo = motivoSelect.value;
+  const observacao = obsInput ? obsInput.value.trim() : "";
+
+  if(!vencedor){ alert("Selecione a dupla que se beneficia (vencedora) da partida!"); return; }
+
+  const existePartidaAnteriorDecidida = c.partidas.some(p => p && p !== undefined);
+
+  if(MOTIVOS_PENALIDADE.includes(motivo) && !existePartidaAnteriorDecidida){
+    c.partidas[index] = { vencedor, pontos: 6, motivo, observacao };
+
+    if(vencedor === 'A'){
+      c.vitoriasA = 2; c.vitoriasB = 0;
+      c.pontosA = 6; c.pontosB = 0;
+    } else {
+      c.vitoriasB = 2; c.vitoriasA = 0;
+      c.pontosB = 6; c.pontosA = 0;
+    }
+
+    for(let i = 0; i < c.partidas.length; i++){
+      if(i !== index && c.partidas[i] === null){
+        c.partidas[i] = undefined;
+      }
+    }
+
+    c.finalizado = true;
+    salvar();
+    return;
+  }
+
+  c.partidas[index] = { vencedor, pontos: 3, motivo, observacao };
+
+  const vitoriasA = c.partidas.filter(p => p && p !== undefined && p.vencedor === 'A').length;
+  const vitoriasB = c.partidas.filter(p => p && p !== undefined && p.vencedor === 'B').length;
+  c.vitoriasA = vitoriasA;
+  c.vitoriasB = vitoriasB;
+  c.pontosA = vitoriasA * 3;
+  c.pontosB = vitoriasB * 3;
+
+  const necessarioParaVencer = ehFaseDeGrupos(c.rodada) ? 2 : 1;
+
+  if(vitoriasA >= necessarioParaVencer || vitoriasB >= necessarioParaVencer){
+    c.finalizado = true;
+    for(let i = 0; i < c.partidas.length; i++){
+      if(c.partidas[i] === null){
+        c.partidas[i] = undefined;
+      }
+    }
+  }
+
+  salvar();
+}
+
+function nomeDupla(arr){ return arr.join(" & "); }
+
+function legendaMotivo(m){
+  const map = {
+    ponto:"Venceu por Pontos",
+    galo_gay:"🐓 Galo Gay",
+    pedra_mao:"🖐️ Pedra na mão",
+    gato:"🐱 Passou o gato",
+    falar:"🤐 Falou no jogo",
+    sinal:"👀 Deu sinal",
+    bye:"🔁 Bye — Avanço Automático"
+  };
+  return map[m] || m;
+}
+
+function vencedorDoConfronto(c){
+  if(c.eliminadaA) return 'B';
+  if(c.eliminadaB) return 'A';
+  const necessario = ehFaseDeGrupos(c.rodada) ? 2 : 1;
+  if(c.vitoriasA >= necessario) return 'A';
+  if(c.vitoriasB >= necessario) return 'B';
+  return null;
+}
+
+function torneioJaTemCampeao(){
+  return confrontos.some(c => c.rodada === "Final" && c.finalizado);
+}
+
+function render(){
+  const lista = document.getElementById('listaConfrontos');
+  const jaTemCampeao = torneioJaTemCampeao();
+
+  if(confrontos.length === 0){
+    lista.innerHTML = `<div class="empty">Nenhum confronto cadastrado ainda.</div>`;
+  } else {
+    lista.innerHTML = confrontos.map(c => {
+      const vencedorFinal = vencedorDoConfronto(c);
+      const isMelhorDe3 = ehFaseDeGrupos(c.rodada);
+      const tagLabel = isMelhorDe3 ? "Melhor de 3 (3 pts/vitória)" : "Partida Única";
+
+      const eFaseEncerradaPosCampeao = jaTemCampeao && !["Final","Disputa 3º Lugar"].includes(c.rodada) && !c.finalizado;
+
+      let statusA, statusB;
+      if(isMelhorDe3){
+        statusA = c.eliminadaA
+          ? `<span class="status-eliminada">❌ Eliminada</span>`
+          : (vencedorFinal === 'A' ? `<span class="status-viva">🏆 Classificada (${c.pontosA} pts)</span>` : `<span class="status-viva">Em jogo (${c.pontosA} pts)</span>`);
+        statusB = c.eliminadaB
+          ? `<span class="status-eliminada">❌ Eliminada</span>`
+          : (vencedorFinal === 'B' ? `<span class="status-viva">🏆 Classificada (${c.pontosB} pts)</span>` : `<span class="status-viva">Em jogo (${c.pontosB} pts)</span>`);
+      } else if(eFaseEncerradaPosCampeao){
+        statusA = `<span class="status-concluida">— Torneio encerrado —</span>`;
+        statusB = `<span class="status-concluida">— Torneio encerrado —</span>`;
+      } else {
+        statusA = c.eliminadaA
+          ? `<span class="status-eliminada">❌ Eliminada</span>`
+          : (vencedorFinal === 'A' ? `<span class="status-viva">🏆 Avançou</span>` : `<span class="status-viva">Em jogo</span>`);
+        statusB = c.eliminadaB
+          ? `<span class="status-eliminada">❌ Eliminada</span>`
+          : (vencedorFinal === 'B' ? `<span class="status-viva">🏆 Avançou</span>` : `<span class="status-viva">Em jogo</span>`);
+      }
+
+      let partidasHtml = c.partidas.map((p, i) => {
+        const rotulo = isMelhorDe3 ? `Partida ${i+1}` : "Partida Única";
+
+        if(p === undefined){
+          return `<tr>
+            <td>${rotulo}</td>
+            <td colspan="3"><span class="aviso-concluido">✅ Não necessária — confronto já decidido</span></td>
+          </tr>`;
+        }
+
+        if(p){
+          return `<tr>
+            <td>${rotulo}</td>
+            <td>${p.vencedor === 'A' ? nomeDupla(c.duplaA) : nomeDupla(c.duplaB)}</td>
+            <td>${p.pontos} pts</td>
+            <td>${legendaMotivo(p.motivo)}${p.observacao ? `<br><small style="opacity:0.8;">📝 ${p.observacao}</small>` : ''}</td>
+          </tr>`;
+        }
+
+        if(eFaseEncerradaPosCampeao){
+          return `<tr>
+            <td>${rotulo}</td>
+            <td colspan="3"><span class="status-concluida">Torneio já definiu o campeão — este confronto não será mais disputado</span></td>
+          </tr>`;
+        }
+
+        return `<tr>
+          <td>${rotulo}</td>
+          <td colspan="3">
+            <div class="partida-inputs">
+              <select id="vencedor_${c.id}_${i}">
+                <option value="">Vencedor</option>
+                <option value="A">${nomeDupla(c.duplaA)}</option>
+                <option value="B">${nomeDupla(c.duplaB)}</option>
+              </select>
+              <select id="motivo_${c.id}_${i}" onchange="toggleObservacao(${c.id}, ${i})">
+                <option value="ponto">Venceu por Pontos</option>
+                <option value="galo_gay">🐓 Galo Gay</option>
+                <option value="pedra_mao">🖐️ Pedra na mão</option>
+                <option value="gato">🐱 Passou o gato</option>
+                <option value="falar">🤐 Falou no jogo</option>
+                <option value="sinal">👀 Deu sinal</option>
+              </select>
+              <span></span>
+              <button class="small" onclick="registrarPartida(${c.id}, ${i})">✔️</button>
+            </div>
+            <div id="obsWrapper_${c.id}_${i}" style="display:block; margin-top:6px;">
+              <input type="text" id="obs_${c.id}_${i}" placeholder="📝 Observação (opcional)">
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+
+      return `
+      <div class="card" style="border-color:${vencedorFinal ? '#7CFC7C' : 'var(--ouro)'}">
+        <div style="font-size:0.85em; color:var(--ouro); margin-bottom:5px;">
+          📌 ${c.rodada} <span class="fase-tag">${tagLabel}</span>
+          &nbsp;|&nbsp; 📅 ${formatarDataHora(c.dataEvento, c.horaEvento)}
+        </div>
+        <div class="grid2">
+          <div><b>Dupla A:</b> ${nomeDupla(c.duplaA)} — ${statusA}</div>
+          <div><b>Dupla B:</b> ${nomeDupla(c.duplaB)} — ${statusB}</div>
+        </div>
+        <table>
+          <tr><th>Partida</th><th>Vencedor</th><th>Pontos</th><th>Motivo</th></tr>
+          ${partidasHtml}
+        </table>
+        <button class="ghost small" onclick="abrirEdicaoConfronto(${c.id})">✏️ Editar</button>
+        <button class="danger small" onclick="excluirConfronto(${c.id})">🗑️ Excluir</button>
+      </div>`;
+    }).join('');
+  }
+
+  renderBracket();
+  renderRankingAtual();
+  renderAuditoriaDuplas();
+  renderPodio();
+  atualizarBloqueiosInterface();
+}
+
+function renderBracket(){
+  const bracketDiv = document.getElementById('bracket');
+  const jaTemCampeao = torneioJaTemCampeao();
+  const ordemFases = ["Fase de Grupos","Quartas de Final","Semifinal","Disputa 3º Lugar","Final"];
+  const agrupado = {};
+  ordemFases.forEach(f => agrupado[f] = confrontos.filter(c => c.rodada === f));
+
+  const colunas = ordemFases.filter(f => agrupado[f].length > 0);
+
+  if(colunas.length === 0){
+    bracketDiv.innerHTML = `<div class="empty">Cadastre confrontos para visualizar o chaveamento.</div>`;
+    return;
+  }
+
+  bracketDiv.innerHTML = colunas.map(fase => {
+    const confrontosDaFase = agrupado[fase].filter(c => {
+      if(jaTemCampeao && !["Final","Disputa 3º Lugar"].includes(fase) && !c.finalizado){
+        return false;
+      }
+      return true;
+    });
+
+    if(confrontosDaFase.length === 0) return "";
+
+    const jogos = confrontosDaFase.map(c => {
+      const vencedor = vencedorDoConfronto(c);
+      const classeA = c.eliminadaA ? 'eliminado' : (vencedor === 'A' ? 'vencedor' : '');
+      const classeB = c.eliminadaB ? 'eliminado' : (vencedor === 'B' ? 'vencedor' : '');
+      return `
+        <div class="bracket-match">
+          <div class="bracket-data">📅 ${formatarDataHora(c.dataEvento, c.horaEvento)}</div>
+          <div class="time ${classeA}">${nomeDupla(c.duplaA)}</div>
+          <div style="text-align:center;color:var(--ouro);">vs</div>
+          <div class="time ${classeB}">${nomeDupla(c.duplaB)}</div>
+        </div>`;
+    }).join('');
+    return `<div class="rodada-col"><h3>${fase}</h3>${jogos}</div>`;
+  }).join('');
+}
+
+function renderRankingAtual(){
+  const div = document.getElementById('rankingAtual');
+  if(confrontos.length === 0){
+    div.innerHTML = '<p class="empty">Nenhum confronto cadastrado ainda.</p>';
+    return;
+  }
+
+  const stats = {};
+
+  confrontos.forEach(c => {
+    const nomeA = nomeDupla(c.duplaA);
+    const nomeB = nomeDupla(c.duplaB);
+    stats[nomeA] = stats[nomeA] || { pontos:0, partidasJogadas:0, confrontosVencidos:0, confrontosDisputados:0 };
+    stats[nomeB] = stats[nomeB] || { pontos:0, partidasJogadas:0, confrontosVencidos:0, confrontosDisputados:0 };
+
+    stats[nomeA].pontos += c.pontosA || 0;
+    stats[nomeB].pontos += c.pontosB || 0;
+
+    const partidasJogadasA = c.partidas.filter(p => p && p !== undefined).length;
+    stats[nomeA].partidasJogadas += partidasJogadasA;
+    stats[nomeB].partidasJogadas += partidasJogadasA;
+
+    stats[nomeA].confrontosDisputados += 1;
+    stats[nomeB].confrontosDisputados += 1;
+
+    const venc = vencedorDoConfronto(c);
+    if(venc === 'A') stats[nomeA].confrontosVencidos += 1;
+    if(venc === 'B') stats[nomeB].confrontosVencidos += 1;
+  });
+
+  const ranking = Object.entries(stats)
+    .map(([nome, s]) => ({ nome, ...s }))
+    .sort((a,b) => b.pontos - a.pontos || b.confrontosVencidos - a.confrontosVencidos);
+
+  let html = '<table><tr><th>#</th><th>Dupla</th><th>Pontos</th><th>Confrontos Vencidos</th><th>Confrontos Disputados</th><th>Partidas Jogadas</th></tr>';
+  ranking.forEach((r, i) => {
+    html += `<tr>
+      <td>${i+1}º</td>
+      <td>${r.nome}</td>
+      <td><b>${r.pontos}</b></td>
+      <td>${r.confrontosVencidos}</td>
+      <td>${r.confrontosDisputados}</td>
+      <td>${r.partidasJogadas}</td>
+    </tr>`;
+  });
+  html += '</table>';
+  div.innerHTML = html;
+}
+
+/* ==========================================================
+   AUDITORIA DE DUPLAS
+========================================================== */
+function renderAuditoriaDuplas(){
+  const div = document.getElementById('auditoriaDuplas');
+  if(confrontos.length === 0){
+    div.innerHTML = '<p class="empty">Nenhum confronto cadastrado ainda.</p>';
+    return;
+  }
+
+  const dados = {};
+
+  confrontos.forEach(c => {
+    const nomeA = nomeDupla(c.duplaA);
+    const nomeB = nomeDupla(c.duplaB);
+    dados[nomeA] = dados[nomeA] || { fases: [], pontos: 0, partidasJogadas: 0 };
+    dados[nomeB] = dados[nomeB] || { fases: [], pontos: 0, partidasJogadas: 0 };
+
+    dados[nomeA].fases.push(c.rodada);
+    dados[nomeB].fases.push(c.rodada);
+
+    dados[nomeA].pontos += c.pontosA || 0;
+    dados[nomeB].pontos += c.pontosB || 0;
+
+    const partidasReais = c.partidas.filter(p => p && p !== undefined).length;
+    dados[nomeA].partidasJogadas += partidasReais;
+    dados[nomeB].partidasJogadas += partidasReais;
+  });
+
+  let avisos = [];
+  const ordemCompleta = ["Fase de Grupos","Quartas de Final","Semifinal","Disputa 3º Lugar","Final"];
+  const idxDisputa3 = ordemCompleta.indexOf("Disputa 3º Lugar");
+
+  Object.entries(dados).forEach(([nome, info]) => {
+    const indices = [...new Set(info.fases.map(f => ordemCompleta.indexOf(f)))].sort((a,b)=>a-b);
+    for(let i = 1; i < indices.length; i++){
+      const anterior = indices[i-1];
+      const atual = indices[i];
+      const salto = atual - anterior;
+
+      if(salto > 1){
+        const fasesPuladas = [];
+        for(let k = anterior + 1; k < atual; k++){
+          fasesPuladas.push(k);
+        }
+        const apenasPulouDisputa3 = fasesPuladas.length === 1 && fasesPuladas[0] === idxDisputa3;
+
+        if(!apenasPulouDisputa3){
+          avisos.push(`⚠️ ${nome} pulou de "${ordemCompleta[anterior]}" para "${ordemCompleta[atual]}" sem passar pela fase intermediária.`);
+        }
+      }
+    }
+  });
+
+  let html = '<table><tr><th>Dupla</th><th>Fases Jogadas</th><th>Nº Confrontos</th><th>Partidas Jogadas</th><th>Pontos Totais</th></tr>';
+  Object.entries(dados)
+    .sort((a,b) => b[1].pontos - a[1].pontos)
+    .forEach(([nome, info]) => {
+      html += `<tr>
+        <td>${nome}</td>
+        <td style="font-size:0.75em;">${info.fases.join(', ')}</td>
+        <td>${info.fases.length}</td>
+        <td>${info.partidasJogadas}</td>
+        <td><b>${info.pontos}</b></td>
+      </tr>`;
+    });
+  html += '</table>';
+
+  if(avisos.length > 0){
+    html += `<div class="alerta-critico"><b>🔴 Inconsistências detectadas:</b><br>${avisos.join('<br>')}</div>`;
+  }
+
+  div.innerHTML = html;
+}
+
+function renderPodio(){
+  const podioDiv = document.getElementById('podio');
+
+  const finaisFinalizadas = confrontos.filter(c => c.rodada === "Final" && c.finalizado);
+  const disputas3Finalizadas = confrontos.filter(c => c.rodada === "Disputa 3º Lugar" && c.finalizado);
+
+  const final = finaisFinalizadas.length ? finaisFinalizadas[finaisFinalizadas.length - 1] : null;
+  const disputa3 = disputas3Finalizadas.length ? disputas3Finalizadas[disputas3Finalizadas.length - 1] : null;
+
+  if(!final || !disputa3){
+    podioDiv.innerHTML = `<div class="empty">
+      O pódio oficial só será exibido quando a <b>Final</b> e a <b>Disputa de 3º Lugar</b> forem concluídas.<br>
+      ${final ? '✅ Final concluída.' : '⏳ Final pendente.'}<br>
+      ${disputa3 ? '✅ Disputa de 3º Lugar concluída.' : '⏳ Disputa de 3º Lugar pendente.'}
+    </div>`;
+    return;
+  }
+
+  const vFinal = vencedorDoConfronto(final);
+  const perdedorFinal = vFinal === 'A' ? 'B' : 'A';
+  const v3 = vencedorDoConfronto(disputa3);
+
+  const top3 = [
+    { pos:1, nome: nomeDupla(vFinal === 'A' ? final.duplaA : final.duplaB) },
+    { pos:2, nome: nomeDupla(perdedorFinal === 'A' ? final.duplaA : final.duplaB) },
+    { pos:3, nome: nomeDupla(v3 === 'A' ? disputa3.duplaA : disputa3.duplaB) }
+  ];
+
+  let avisoDuplicidade = "";
+  if(finaisFinalizadas.length > 1 || disputas3Finalizadas.length > 1){
+    avisoDuplicidade = `<div class="alerta-critico">🔴 Foram encontrados múltiplos confrontos de Final/Disputa 3º Lugar. Revise o histórico.</div>`;
+  }
+
+  const medalhas = ['🥇','🥈','🥉'];
+  const classes = ['ouro','prata','bronze'];
+
+  podioDiv.innerHTML = avisoDuplicidade + top3.map(t => `
+    <div class="podio-item ${classes[t.pos-1]}">
+      <div class="medalha">${medalhas[t.pos-1]}</div>
+      <div><b>${t.nome}</b></div>
+      <div>${t.pos}º Lugar</div>
+    </div>
+  `).join('');
+}
+
+/* ==========================================================
+   CRONÔMETRO
+========================================================== */
+function obterProximoEvento(){
+  const agora = new Date();
+  const pendentesComData = confrontos
+    .filter(c => c.dataEvento && !c.finalizado)
+    .map(c => {
+      const [ano, mes, dia] = c.dataEvento.split('-').map(Number);
+      const [h, m] = (c.horaEvento || "18:00").split(':').map(Number);
+      const dataHora = new Date(ano, mes-1, dia, h, m, 0);
+      return { c, dataHora };
+    })
+    .filter(item => item.dataHora >= agora || (agora - item.dataHora) < 4*60*60*1000)
+    .sort((a,b) => a.dataHora - b.dataHora);
+
+  return pendentesComData.length > 0 ? pendentesComData[0] : null;
+}
+
+function atualizarCronometro(){
+  const el = document.getElementById('cronometro');
+
+  if(torneioJaTemCampeao()){
+    el.textContent = `🏆 Torneio já concluído — campeão definido!`;
+    el.classList.remove('alerta');
+    return;
+  }
+
+  const proximo = obterProximoEvento();
+
+  if(!proximo){
+    el.textContent = `⏰ Nenhum evento com data/hora cadastrado`;
+    el.classList.remove('alerta');
+    return;
+  }
+
+  const agora = new Date();
+  const inicio = proximo.dataHora;
+  const fim = new Date(inicio.getTime() + 4*60*60*1000);
+
+  if(agora < inicio){
+    const diff = inicio - agora;
+    el.textContent = `⏳ Próximo jogo (${nomeDupla(proximo.c.duplaA)} vs ${nomeDupla(proximo.c.duplaB)}) em ${formatarMs(diff)}`;
+    el.classList.remove('alerta');
+  } else if(agora >= inicio && agora < fim){
+    const diff = fim - agora;
+    el.textContent = `🕗 Em andamento: ${nomeDupla(proximo.c.duplaA)} vs ${nomeDupla(proximo.c.duplaB)} — restam ${formatarMs(diff)}`;
+    if(diff <= 15*60*1000){ el.classList.add('alerta'); } else { el.classList.remove('alerta'); }
+  } else {
+    el.textContent = `🔴 Horário encerrado (limite: 22h00 — regras do condomínio)`;
+    el.classList.add('alerta');
+  }
+}
+function formatarMs(ms){
+  if(ms < 0) ms = 0;
+  const h = Math.floor(ms/3600000);
+  const m = Math.floor((ms%3600000)/60000);
+  const s = Math.floor((ms%60000)/1000);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+setInterval(atualizarCronometro, 1000);
+atualizarCronometro();
+
+/* ==========================================================
+   EXPORTAÇÕES
+========================================================== */
+function exportarPDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(16);
+  doc.text("Torneio de Dominó - Condomínio Ponta Negra", 14, 15);
+
+  const rows = [];
+  confrontos.forEach(c => {
+    c.partidas.forEach((p, i) => {
+      if(p && p !== undefined){
+        rows.push([
+          c.rodada,
+          formatarDataHora(c.dataEvento, c.horaEvento),
+          nomeDupla(c.duplaA),
+          nomeDupla(c.duplaB),
+          ehFaseDeGrupos(c.rodada) ? `Partida ${i+1}` : "Única",
+          p.vencedor === 'A' ? nomeDupla(c.duplaA) : nomeDupla(c.duplaB),
+          p.pontos,
+          legendaMotivo(p.motivo) + (p.observacao ? ` (${p.observacao})` : '')
+        ]);
+      }
+    });
+  });
+
+  doc.autoTable({
+    head: [["Fase","Data/Hora","Dupla A","Dupla B","Partida","Vencedor","Pontos","Motivo"]],
+    body: rows,
+    startY: 22,
+    styles: { fontSize: 7 },
+    headStyles: { fillColor: [92,10,30] }
+  });
+
+  doc.save("torneio_domino_ponta_negra.pdf");
+}
+
+function exportarExcel(){
+  const rows = [];
+  confrontos.forEach(c => {
+    c.partidas.forEach((p, i) => {
+      if(p && p !== undefined){
+        rows.push({
+          Fase: c.rodada,
+          "Data/Hora": formatarDataHora(c.dataEvento, c.horaEvento),
+          "Dupla A": nomeDupla(c.duplaA),
+          "Dupla B": nomeDupla(c.duplaB),
+          Partida: ehFaseDeGrupos(c.rodada) ? i+1 : "Única",
+          Vencedor: p.vencedor === 'A' ? nomeDupla(c.duplaA) : nomeDupla(c.duplaB),
+          Pontos: p.pontos,
+          Motivo: legendaMotivo(p.motivo),
+          Observacao: p.observacao || ""
+        });
+      }
+    });
+  });
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Resultados");
+  XLSX.writeFile(wb, "torneio_domino_ponta_negra.xlsx");
+}
+
+/* ==========================================================
+   SORTEIO DE PRÓXIMA FASE (mata-mata)
+========================================================== */
+function gerarSorteio(){
+  if(torneioJaTemCampeao()){
+    alert("🏆 O torneio já foi concluído! O campeão já foi definido na Final.");
+    return null;
+  }
+
+  const fasesComJogos = ORDEM_FASES.filter(f => confrontos.some(c => c.rodada === f));
+  if(fasesComJogos.length === 0){
+    alert("Cadastre confrontos na Fase de Grupos primeiro!");
+    return null;
+  }
+
+  const faseAtual = fasesComJogos[fasesComJogos.length - 1];
+  const indexAtual = ORDEM_FASES.indexOf(faseAtual);
+  const jogosFaseAtual = confrontos.filter(c => c.rodada === faseAtual);
+
+  const pendentes = jogosFaseAtual.filter(c => !c.finalizado);
+  if(pendentes.length > 0){
+    alert(`⚠️ Ainda há ${pendentes.length} confronto(s) pendente(s) em "${faseAtual}". Finalize todos antes de sortear.`);
+    return null;
+  }
+
+  if(faseAtual === "Final"){
+    alert("🏆 O torneio já chegou à Final! Registre o resultado para definir o campeão.");
+    return null;
+  }
+
+  const vencedores = jogosFaseAtual.map(c => vencedorDoConfronto(c) === 'A' ? c.duplaA : c.duplaB);
+
+  if(vencedores.length < 2){
+    alert("É necessário pelo menos 2 duplas vencedoras para sortear a próxima fase.");
+    return null;
+  }
+
+  const proximaFase = ORDEM_FASES[indexAtual + 1];
+
+  if(FASES_UNICAS.includes(proximaFase) && confrontos.some(c => c.rodada === proximaFase)){
+    alert(`Já existe um confronto cadastrado para "${proximaFase}". Essa fase permite apenas 1 jogo decisivo.`);
+    return null;
+  }
+
+  const embaralhados = embaralhar(vencedores);
+  const novosConfrontos = [];
+  let avisoTexto = "";
+
+  if(proximaFase === "Final"){
+    if(embaralhados.length < 2){
+      alert("Não há duplas suficientes para gerar a Final.");
+      return null;
+    }
+    novosConfrontos.push({
+      id: gerarIdUnico(),
+      rodada: "Final",
+      dataEvento: "",
+      horaEvento: "18:00",
+      duplaA: embaralhados[0],
+      duplaB: embaralhados[1],
+      partidas: new Array(1).fill(null),
+      vitoriasA: 0, vitoriasB: 0,
+      pontosA: 0, pontosB: 0,
+      eliminadaA: false, eliminadaB: false,
+      finalizado: false
+    });
+  } else {
+    for(let i = 0; i < embaralhados.length - 1; i += 2){
+      novosConfrontos.push({
+        id: gerarIdUnico(),
+        rodada: proximaFase,
+        dataEvento: "",
+        horaEvento: "18:00",
+        duplaA: embaralhados[i],
+        duplaB: embaralhados[i + 1],
+        partidas: new Array(1).fill(null),
+        vitoriasA: 0, vitoriasB: 0,
+        pontosA: 0, pontosB: 0,
+        eliminadaA: false, eliminadaB: false,
+        finalizado: false
+      });
+    }
+
+    if(embaralhados.length % 2 !== 0){
+      const sobra = embaralhados[embaralhados.length - 1];
+      novosConfrontos.push({
+        id: gerarIdUnico(),
+        rodada: proximaFase,
+        dataEvento: "",
+        horaEvento: "18:00",
+        duplaA: sobra,
+        duplaB: ["BYE", "(avanço automático)"],
+        partidas: [{ vencedor: 'A', pontos: 0, motivo: "bye", observacao: "Avanço automático — sem par no sorteio" }],
+        vitoriasA: 1, vitoriasB: 0,
+        pontosA: 0, pontosB: 0,
+        eliminadaA: false, eliminadaB: true,
+        finalizado: true
+      });
+      avisoTexto = `ℹ️ A dupla "${nomeDupla(sobra)}" avançou automaticamente (bye - sem par no sorteio).`;
+    }
+  }
+
+  if(faseAtual === "Semifinal" && !confrontos.some(c => c.rodada === "Disputa 3º Lugar")){
+    const perdedores = jogosFaseAtual.map(c => {
+      const v = vencedorDoConfronto(c);
+      return v === 'A' ? c.duplaB : c.duplaA;
+    });
+    if(perdedores.length === 2){
+      novosConfrontos.push({
+        id: gerarIdUnico(),
+        rodada: "Disputa 3º Lugar",
+        dataEvento: "",
+        horaEvento: "18:00",
+        duplaA: perdedores[0],
+        duplaB: perdedores[1],
+        partidas: new Array(1).fill(null),
+        vitoriasA: 0, vitoriasB: 0,
+        pontosA: 0, pontosB: 0,
+        eliminadaA: false, eliminadaB: false,
+        finalizado: false
+      });
+    }
+  }
+
+  return { proximaFase, novosConfrontos, avisoTexto };
+}
+
+function prepararSorteio(){
+  const resultado = gerarSorteio();
+  if(!resultado) return;
+  sorteioPendente = resultado;
+  mostrarPreview();
+}
+
+function mostrarPreview(){
+  const conteudo = document.getElementById('previewConteudo');
+  const { proximaFase, novosConfrontos, avisoTexto } = sorteioPendente;
+
+  let html = `<p style="text-align:center;">Fase sorteada: <b style="color:var(--ouro)">${proximaFase}</b> (Partida Única)</p>`;
+  html += `<p class="aviso-info">✅ Confrontos gerados exclusivamente a partir dos vencedores confirmados da fase anterior.</p>`;
+  html += `<label>📅 Data do Evento para esta fase</label>
+           <input type="date" id="dataFaseSorteio">
+           <label>⏰ Hora do Evento</label>
+           <input type="time" id="horaFaseSorteio" value="18:00">`;
+
+  novosConfrontos.forEach(c => {
+    html += `<div class="preview-jogo">
+      <b>${c.rodada}</b><br>
+      ${nomeDupla(c.duplaA)} <span style="color:var(--ouro);">vs</span> ${nomeDupla(c.duplaB)}
+    </div>`;
+  });
+
+  if(avisoTexto){
+    html += `<p style="text-align:center; color:#ffd700;">${avisoTexto}</p>`;
+  }
+
+  conteudo.innerHTML = html;
+  document.getElementById('modalSorteio').classList.add('ativo');
+}
+
+function reSortear(){
+  const resultado = gerarSorteio();
+  if(!resultado) return;
+  sorteioPendente = resultado;
+  mostrarPreview();
+}
+
+function fecharModalSorteio(){
+  sorteioPendente = null;
+  document.getElementById('modalSorteio').classList.remove('ativo');
+}
+
+function confirmarSorteio(){
+  if(!sorteioPendente) return;
+
+  const dataFase = document.getElementById('dataFaseSorteio').value;
+  const horaFase = document.getElementById('horaFaseSorteio').value;
+  if(!dataFase){ alert("Selecione a data do evento para esta fase!"); return; }
+  if(!horaFase){ alert("Selecione a hora do evento para esta fase!"); return; }
+
+  const fasesNoLote = [...new Set(sorteioPendente.novosConfrontos.map(c => c.rodada))];
+  for(const fase of fasesNoLote){
+    if(FASES_UNICAS.includes(fase) && confrontos.some(c => c.rodada === fase)){
+      alert(`Já existe um confronto para "${fase}". Operação cancelada para evitar duplicidade.`);
+      fecharModalSorteio();
+      return;
+    }
+  }
+
+  sorteioPendente.novosConfrontos.forEach(c => {
+    c.dataEvento = dataFase;
+    c.horaEvento = horaFase;
+  });
+
+  confrontos = confrontos.concat(sorteioPendente.novosConfrontos);
+  const faseCriada = sorteioPendente.proximaFase;
+  salvar();
+  fecharModalSorteio();
+  alert(`✅ Fase "${faseCriada}" criada com sucesso!`);
+}
+
+/* ==========================================================
+   INICIALIZAÇÃO
+========================================================== */
+corrigirDuplasDuplicadas();
+persistirDuplasEJogadores();
+renderJogadores();
+renderDuplasAtuais();
+render();
+</script>
+
+</body>
+</html>
